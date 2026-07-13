@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>QuickFiix — Premium Emergency Mechanic Finder</title>
+
+  <!-- Gate: bounce to the sign-in page before anything renders if there's no saved profile -->
+  <script>
+    // Require explicit login every session, even if data is cached
+    if (!sessionStorage.getItem('qf_logged_in')) {
+      window.location.replace('login.html');
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- GSAP for Smooth Animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/topbar.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <link rel="stylesheet" href="css/cards.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/detail.css">
+  <link rel="stylesheet" href="css/loader.css">
+  <link rel="stylesheet" href="css/voice.css">
+  <link rel="stylesheet" href="css/guardians.css">
+  <link rel="stylesheet" href="css/enhance.css">
+</head>
+<body>
+
+  <!-- ═══════════ LOADER ═══════════ -->
+  <div class="loader" id="loader">
+    <div class="loader-backdrop"></div>
+    <div class="loader-card">
+      <div class="lbrand">Quick<em>Fiix</em></div>
+      <div class="lsub">Google-Powered Mechanic Finder</div>
+      <div class="lbw"><div class="lb" id="lb"></div></div>
+      <div class="lmsg" id="lmsg">Booting design systems…</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ APP SHELL ═══════════ -->
+  <div class="shell">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <!-- Brand Logo -->
+      <div class="brand">
+        <div class="brand-icon">
+          <i data-lucide="wrench" class="logo-wrench"></i>
+        </div>
+        <div>
+          <div class="brand-name">Quick<em>Fiix</em></div>
+          <div class="brand-sub">Google Maps · Real-Time</div>
+        </div>
+      </div>
+
+      <!-- Real-Time Stats & Widgets -->
+      <div class="topbar-widgets">
+        <!-- Weather Widget -->
+        <div class="weather-widget" id="weatherWidget" title="Simulated Local Weather">
+          <i data-lucide="cloud-sun" class="weather-icon"></i>
+          <span id="weatherTemp">26°C</span>
+          <span id="weatherCond">Clear</span>
+        </div>
+
+        <!-- Digital Clock & Date -->
+        <div class="qf-clock">
+          <i data-lucide="clock" class="clock-icon"></i>
+          <span id="qfClockTime">--:--</span>
+        </div>
+
+        <!-- GPS Status Pill -->
+        <div class="gps-pill">
+          <span class="pdot"></span>
+          <span class="gps-txt" id="gpsLabel">Acquiring GPS…</span>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls -->
+      <div class="topbar-actions">
+        <!-- Voice Assistant Control -->
+        <div class="voice-container">
+          <button id="voiceBtn" onclick="VoiceControl.isListening ? VoiceControl.stopListening() : VoiceControl.startListening()"
+                  title="Start voice control (Alt+V)"
+                  aria-label="Voice control button"
+                  aria-pressed="false">
+            <i data-lucide="mic"></i>
+          </button>
+          <span id="voiceIndicator" title="Recognition indicator">Listening...</span>
+          <button id="langToggleBtn" onclick="VoiceControl.toggleLanguage()"
+                  title="Toggle language (Alt+L)"
+                  aria-label="Language toggle button"
+                  data-lang="en-IN">EN</button>
+        </div>
+
+        <!-- Command Palette Trigger -->
+        <button class="nav-icon-btn" onclick="toggleCommandPalette(true)" title="Command Palette (Ctrl+K or /)">
+          <i data-lucide="terminal"></i>
+          <span class="btn-label">Palette</span>
+        </button>
+
+        <!-- Help Center Trigger -->
+        <button class="nav-icon-btn" onclick="toggleShortcutsModal(true)" title="Keyboard Shortcuts & Help">
+          <i data-lucide="help-circle"></i>
+          <span class="btn-label">Help</span>
+        </button>
+
+        <!-- Favourites Filter Toggle -->
+        <button class="nav-icon-btn" id="favFilterBtn" onclick="toggleFavFilter()" title="Filter Favourites">
+          <i data-lucide="heart"></i>
+          <span class="btn-label">Saved</span>
+        </button>
+
+        <!-- User Profile Pill -->
+        <button class="user-pill" id="userPill" onclick="qfLogout()" title="Switch user"></button>
+
+        <!-- Guardian Manager -->
+        <button class="guardian-btn" onclick="openGuardians()" title="Manage emergency guardians">
+          <i data-lucide="shield"></i>
+          <span>Guardians</span>
+        </button>
+
+        <!-- Emergency SMS -->
+        <button class="ems-btn" onclick="sendEmergencySms()" title="Send emergency SMS to all guardians">
+          <i data-lucide="message-square"></i>
+          <span>Emergency SMS</span>
+        </button>
+
+        <!-- SOS Trigger -->
+        <button class="sos" onclick="sosAction()">
+          <i data-lucide="zap" class="sos-icon"></i>
+          SOS
+        </button>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div class="body">
+
+      <!-- SIDEBAR -->
+      <div class="sidebar">
+        <!-- Search bar input -->
+        <div class="sw">
+          <div class="sbox">
+            <i data-lucide="search" class="search-icon"></i>
+            <input id="qinput" type="text" placeholder="Search by name, area, or press '/'..." oninput="doFilter()">
+            <kbd class="shortcuts-hint">/</kbd>
+          </div>
+        </div>
+
+        <!-- Search Radius Slider -->
+        <div class="rw">
+          <div class="rh">
+            <span class="rl"><i data-lucide="map-pin" class="label-icon"></i> Search Radius</span>
+            <span class="rv" id="rdisplay">2.0 km</span>
+          </div>
+          <input type="range" class="rs" id="rslider" min="500" max="10000" step="250" value="2000" oninput="onRadius(this.value)">
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="chips-container">
+          <div class="chips-label">Filters</div>
+          <div class="chips">
+            <button class="chip on" data-filter="all" onclick="setChip(this,'all')">All</button>
+            <button class="chip" data-filter="bicycle_store" onclick="setChip(this,'bicycle_store')"><i data-lucide="bike" class="chip-icon"></i> Bicycle</button>
+            <button class="chip" data-filter="car_repair" onclick="setChip(this,'car_repair')"><i data-lucide="car" class="chip-icon"></i> Car</button>
+            <button class="chip" data-filter="gas_station" onclick="setChip(this,'gas_station')"><i data-lucide="fuel" class="chip-icon"></i> Fuel</button>
+            <button class="chip" data-filter="open" onclick="setChip(this,'open')"><i data-lucide="clock" class="chip-icon"></i> Open</button>
+          </div>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="errBanner" class="err-banner"></div>
+
+        <!-- Live Statistics Card Panel -->
+        <div class="sidebar-stats">
+          <div class="stat-card">
+            <div class="stat-num" id="sfound">—</div>
+            <div class="stat-label">Found</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="snear">—</div>
+            <div class="stat-label">Nearest</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="sopen">—</div>
+            <div class="stat-label">Open Now</div>
+          </div>
+        </div>
+
+        <!-- Sorting Menu -->
+        <div class="sortrow">
+          <span class="sl">SORT:</span>
+          <button class="sb on" data-sort="dist" onclick="setSort('dist',this)">Distance</button>
+          <button class="sb" data-sort="rating" onclick="setSort('rating',this)">Rating</button>
+          <button class="sb" data-sort="name" onclick="setSort('name',this)">Name</button>
+        </div>
+
+        <!-- Dynamic Card Listing -->
+        <div class="cards" id="cardList">
+          <!-- Skeleton Loading placeholder (replaced by script) -->
+          <div class="skeleton-list">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAP CONTAINER AREA -->
+      <div class="mw">
+        <!-- Google Map Container -->
+        <div id="map"></div>
+
+        <!-- Premium Apple-inspired Glass Route ETA overlay -->
+        <div class="route-overlay-card" id="routeOverlayCard">
+          <div class="route-info-row">
+            <div class="route-eta-box">
+              <span class="route-eta" id="routeEta">-- min</span>
+              <span class="route-mode">Walking ETA</span>
+            </div>
+            <div class="route-details-box">
+              <div class="route-distance" id="routeDistance">-- km</div>
+              <div class="route-target-name" id="routeTargetName">Mechanic Shop</div>
+            </div>
+          </div>
+          <div class="route-actions">
+            <button class="route-action-btn primary" onclick="triggerSelectedNav()">
+              <i data-lucide="navigation"></i> Start Navigation
+            </button>
+            <button class="route-action-btn secondary" onclick="closeDetail()">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Progress Indicator -->
+        <div class="prog" id="prog"><div class="progb"></div></div>
+
+        <!-- Floating Map Action Toolbar (Apple style) -->
+        <div class="mtb">
+          <div class="mbtn" title="Refresh my location" onclick="flyHome()">
+            <i data-lucide="locate"></i>
+          </div>
+          <div class="mbtn" title="Reload mechanics" onclick="fetchAll()">
+            <i data-lucide="rotate-cw"></i>
+          </div>
+          <div class="mbtn" title="Toggle satellite map" onclick="toggleMapType()">
+            <i data-lucide="layers"></i>
+          </div>
+          <div class="mbtn fire" title="SOS Emergency Navigate" onclick="sosAction()">
+            <i data-lucide="zap"></i>
+          </div>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="mleg">
+          <div class="mlt">Map Legend</div>
+          <div class="mli"><div class="mld" style="background:#3B82F6"></div>Your position</div>
+          <div class="mli"><div class="mld" style="background:#10B981"></div>Bicycle Shop</div>
+          <div class="mli"><div class="mld" style="background:#EF4444"></div>Car Repair</div>
+          <div class="mli"><div class="mld" style="background:#F59E0B"></div>Fuel Station</div>
+          <div class="mli"><div class="mld" style="background:#8B5CF6"></div>Other</div>
+        </div>
+
+        <!-- Floating Location details sheet -->
+        <div class="dp" id="dp">
+          <div class="dph">
+            <div class="dph-bar"></div>
+            <button class="dpc" onclick="closeDetail()">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          <div id="dpContent"></div>
+        </div>
+
+        <!-- Floating Guardian list sheet -->
+        <div class="dp gp" id="gp">
+          <div class="dph">
+            <div class="dph-bar"></div>
+            <button class="dpc" onclick="closeGuardians()">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+
+          <div class="g-title-row">
+            <i data-lucide="shield-check" class="guardian-shield-icon"></i>
+            <div>
+              <div class="g-title">Trusted Guardians</div>
+              <div class="g-sub">These contacts will be alerted immediately if you trigger an SOS.</div>
+            </div>
+          </div>
+
+          <div id="guardianSendArea"></div>
+
+          <div class="g-form">
+            <div class="g-input-group">
+              <span class="input-icon"><i data-lucide="user"></i></span>
+              <input id="gName" type="text" placeholder="Guardian Name">
+            </div>
+            <div class="g-input-group">
+              <span class="input-icon"><i data-lucide="phone"></i></span>
+              <input id="gPhone" type="tel" placeholder="Phone Number">
+            </div>
+            <div class="g-input-group">
+              <span class="input-icon"><i data-lucide="mail"></i></span>
+              <input id="gEmail" type="email" placeholder="Email Address">
+            </div>
+            <button class="g-add-btn" onclick="addGuardian()">
+              <i data-lucide="plus"></i> Add
+            </button>
+          </div>
+
+          <div id="guardianList"></div>
+        </div>
+      </div>
+
+    </div><!-- /.body -->
+  </div><!-- /.shell -->
+
+  <!-- Toast Notification Stack Container -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Command Palette Modal -->
+  <div id="commandPalette" class="cp-modal">
+    <div class="cp-box">
+      <div class="cp-input-wrapper">
+        <i data-lucide="search" class="cp-icon"></i>
+        <input id="cpInput" type="text" placeholder="Type a command (e.g., 'Car repair', 'Show open', 'SOS')..." autocomplete="off">
+        <kbd class="cp-kbd">ESC</kbd>
+      </div>
+      <div id="cpResults" class="cp-results"></div>
+      <div class="cp-footer">
+        <span>Use <kbd>↑</kbd> <kbd>↓</kbd> to select, <kbd>Enter</kbd> to execute, <kbd>ESC</kbd> to dismiss.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts & Help Modal -->
+  <div id="shortcutsModal" class="cp-modal">
+    <div class="cp-box shortcuts-box">
+      <div class="cp-header">
+        <div class="cp-header-title">
+          <i data-lucide="help-circle" class="help-modal-icon"></i>
+          <h3>QuickFiix Help Center</h3>
+        </div>
+        <button class="modal-close" onclick="toggleShortcutsModal(false)">&times;</button>
+      </div>
+      <div class="shortcuts-content">
+        <div class="help-intro">
+          Welcome to QuickFiix. This application uses Google Maps to locate emergency vehicle services near you. Use the keyboard shortcuts below for hands-free or quick controls.
+        </div>
+        <div class="shortcuts-list">
+          <div class="shortcut-item">
+            <kbd>/</kbd>
+            <span>Focus mechanic search input</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>Ctrl</kbd> + <kbd>K</kbd>
+            <span>Open Command Palette Actions Menu</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>Alt</kbd> + <kbd>V</kbd>
+            <span>Toggle Voice recognition microphone</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>Alt</kbd> + <kbd>L</kbd>
+            <span>Toggle voice language (English / Tamil)</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>ESC</kbd>
+            <span>Close panels, dismiss dialogs, or deselect shops</span>
+          </div>
+        </div>
+        <div class="help-section">
+          <h4>Voice Command Examples:</h4>
+          <ul>
+            <li><strong>English:</strong> "Show car repair", "Show open", "Sort by rating", "Go home", "SOS"</li>
+            <li><strong>Tamil (தமிழ்):</strong> "கார்", "வண்டி பழுது", "அனைத்தும்", "அவசரம்"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/config.js"></script>
+  <script src="js/voice.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/location.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/places.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/detail.js"></script>
+  <script src="js/guardians.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/enhance.js"></script>
+
+  <!-- Custom Confirm Modal -->
+  <div id="confirmModal" class="confirm-modal-overlay" onclick="_closeConfirmOnOverlay(event)">
+    <div class="confirm-modal-box" role="dialog" aria-modal="true">
+      <div class="confirm-modal-icon-wrap" id="confirmModalIconWrap">
+        <i data-lucide="help-circle" id="confirmModalIcon"></i>
+      </div>
+      <h3 class="confirm-modal-title" id="confirmModalTitle">Are you sure?</h3>
+      <p class="confirm-modal-msg" id="confirmModalMsg"></p>
+      <div class="confirm-modal-actions">
+        <button class="confirm-btn cancel" id="confirmModalCancel" onclick="hideConfirmModal()">Cancel</button>
+        <button class="confirm-btn confirm" id="confirmModalOK">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Maps API — must load last, calls initMap() -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBnQroCmaXEQ47F8xqldUUPfH7KukjkdOA&libraries=places&callback=initMap&loading=async"
+    async defer>
+  </script>
+
+</body>
+</html>
